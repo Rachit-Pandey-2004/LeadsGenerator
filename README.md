@@ -1,1 +1,2 @@
-This project scrapes email from Insta user from hashtags and etc
+This project scrapes email of Insta user from hashtags related post and etc
+
