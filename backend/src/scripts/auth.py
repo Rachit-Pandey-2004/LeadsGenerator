@@ -4,9 +4,9 @@ import asyncio
 import random
 
 class Authenticate:
-    STATE_FILE = "src/sessions/browser_state_2.json"
     
     def __init__(self, username, password, page: Page, context: BrowserContext):
+        self.STATE_FILE = "src/sessions/browser_state_2.json"
         self.username = username
         self.password = password
         self.page = page
@@ -18,7 +18,7 @@ class Authenticate:
         cookies, localStorage, sessionStorage and inject via init script
         '''
         try:
-            with open(Authenticate.STATE_FILE, "r") as fs:
+            with open(self.STATE_FILE, "r") as fs:
                 state = load(fs)
             
             # Add cookies directly to the context
@@ -96,7 +96,7 @@ class Authenticate:
             }
             
             # Write state to file
-            with open(Authenticate.STATE_FILE, "w") as f:
+            with open(self.STATE_FILE, "w") as f:
                 dump(browser_state, f, indent=4)
             
             print("Browser state saved successfully")
@@ -142,6 +142,7 @@ class Authenticate:
         loaded = await self.load_browser_state()
         # Check if we're already logged in after loading state
         try:
+            await asyncio.sleep(2)
             await self.page.goto("https://www.instagram.com/")
             await self.page.wait_for_load_state("domcontentloaded")
             

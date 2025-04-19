@@ -1,6 +1,6 @@
 from aiohttp import web
-from routes import setup_routes
-from cors import setup_cors
+from .routes import setup_routes
+from .cors import setup_cors
 
 def create_app():
     app = web.Application()

@@ -85,7 +85,7 @@ const OptionSelector: FC = () => {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                const input = (e.currentTarget.elements[0] as HTMLInputElement).value.replace(/\s+/g, '');
+                const input = (e.currentTarget.elements[0] as HTMLInputElement).value.replaceAll(' ','');
                 const input_array = input.split(",")
                 const limit = (e.currentTarget.elements[1] as HTMLInputElement).value;
                 console.log("Submitted:", activeOption);
@@ -136,8 +136,8 @@ const OptionSelector: FC = () => {
               />
               <input
                 type="number"
-                min="-1"
-                placeholder="Limit (e.g., 1060) and -1 for no limit"
+                min="0"
+                placeholder="Limit (e.g., 1060) "
                 className="w-full p-3 rounded-lg border border-gray-300 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
               <div className="flex justify-end space-x-2">

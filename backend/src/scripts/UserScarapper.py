@@ -12,12 +12,31 @@ need to implement id rotation . . . and pickling or session save and reuse is ne
 import sys
 import os
 import re
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import asyncio
+import logging
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from db import ExtendedUser
 from db import User
+from db import InstagramAccountManager
+
 from ensta import Guest
-import  random
+
+from aiograpi import Client
+from aiograpi.exceptions import (
+    LoginRequired, 
+    AccountSuspended, 
+    AboutUsError,
+    ChallengeRequired,
+    ChallengeError,
+    CheckpointRequired,
+    ConsentRequired,
+    GeoBlockRequired
+) 
+
+logger =logging.getLogger()
+
 def extract_emails(text):
     # Regex pattern for extracting email addresses
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
@@ -156,23 +175,95 @@ class Insta_user_profile:
         except Exception as e:
             print(e)
 
-import aiograpi   
+
 class Driver:
-    async def main():
+    async def main(session_id):
+        # session_id will help to keep the track of the given task id scans
         # client is for aiogrpi
         # get a usier list 
+        '''
+        we need to set the session management also in this script
+        '''
         try:
+            manager = InstagramAccountManager()
+            account = await manager.get_available_account(scraper_id="scraper2")
+            
             print("user Scanner is active")
             await asyncio.sleep(10)
-            client = aiograpi.Client()
-            await client.login(username="thecreators782", password="TheCreators12345")
+            client = Client()
+            client.delay_range = [1, 3]
+            insta_session = client.load_settings(account['sessionDir'])
+            # just some plags
+            login_via_session = False
+            login_via_pw = False
+
+            if insta_session:
+                try:
+                    client.set_settings(insta_session)
+                    await client.login(
+                        username = account['username'],
+                        password = account['password']
+                        )
+                    # now check if the session is valid or not
+                    try:
+                        await client.get_timeline_feed()
+                    except LoginRequired:
+                        logger.info("Session is invalid. need to login via credentials")
+                        old_insta_session  = client.get_settings()
+                        client.set_settings({})
+                        client.set_uuids(old_insta_session["uuids"])
+                        await client.login(
+                            username = account['username'],
+                            password = account['password']
+                        )
+                    except (ChallengeRequired, CheckpointRequired, ChallengeError):
+                        await manager.update_banstatus(account['username'], "challenge")
+                        logger.warning("Challenge flow triggered.")
+                        raise
+                    except (ConsentRequired, GeoBlockRequired):
+                        await manager.update_banstatus(account['username'], "restricted")
+                        logger.warning("Geo/Consent restriction triggered.")
+                        raise
+                    except AccountSuspended:
+                        await manager.update_banstatus(account['username'], "suspended")
+                        raise
+                    except AboutUsError:
+                        await manager.update_banstatus(account['username'], "blocked")
+                        raise
+                    finally:
+                        login_via_session = True
+                except Exception as e:
+                    logger.info("Couldn't login user using the session info: %s"%account['username'])
+                    print(e)
+            if not login_via_session:
+                try:
+                    logger.info("Attempting to login via username and password.")
+                    if await client.login(username = account['username'], password = account['password']):
+                        login_via_pw = True
+                except Exception as e : 
+                    logger.info("Couldn't login user using username and password")
+                except (ChallengeRequired, CheckpointRequired, ChallengeError):
+                    await manager.update_banstatus(account['username'], "challenge")
+                    logger.warning("Challenge flow triggered.")
+                    raise
+                except (ConsentRequired, GeoBlockRequired):
+                    await manager.update_banstatus(account['username'], "restricted")
+                    logger.warning("Geo/Consent restriction triggered.")
+                    raise
+                except AccountSuspended:
+                    await manager.update_banstatus(account['username'], "suspended")
+                    raise
+                except AboutUsError:
+                    await manager.update_banstatus(account['username'], "blocked")
+                    raise
+            if not login_via_pw and not login_via_session : 
+                raise Exception("Couldn't login user with either password or session")
+            
             while (True):
-                users = await User.find_by_scanned_status(scanned=False)
+                users = await User.find_by_scanned_status(scanned=False,search_id = session_id)
                 if users == []:
                     print("user scanner going to sleep for 30 sec")
                     await asyncio.sleep(30)
-                
-                
                 for usr in users:
                     content = usr.to_dict()
                     classObj = Insta_user_profile(content,client)
@@ -180,9 +271,10 @@ class Driver:
                     completed = await classObj.db_handler()
                     if completed:
                         await usr.update(scanned=True)
-                    await asyncio.sleep(random.randrange(30,60))
         except Exception as e:
             print(e)
+        finally:
+            await manager.set_cooldown(account['username'])
             
 if __name__ == "__main__":
     asyncio.run(Driver.main())

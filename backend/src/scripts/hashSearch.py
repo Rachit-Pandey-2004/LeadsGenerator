@@ -43,7 +43,7 @@ class Hash:
     async def __scrollTags(self):
         try:
             while((self.next_max_id is not None and self.next_max_id!=self.last_max_id and self.limit > 1)):
-                await asyncio.sleep(500)
+                await asyncio.sleep(1)
                 self.last_max_id= self.next_max_id
                 await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 print("Scrolling page...")
@@ -57,7 +57,6 @@ class Hash:
                     }"""
                 )
                 print(f"last maxid >>{self.last_max_id}\nnext maxid {self.next_max_id}")
-                await asyncio.sleep(4)
                 await asyncio.sleep(random.gammavariate(2.05678,2.032))
                 self.limit = self.limit - 1 # decrasing by scrolls
                 
@@ -68,9 +67,10 @@ class Hash:
     async def search(self):
         try:
             # here implement the user searching task
-            task = asyncio.create_task(Driver.main())
+            task = asyncio.create_task(Driver.main(self.session_id))
             # this is only for hooking the data
             self.page.on("response", self.hook)
+            await asyncio.sleep(2)
             # Navigate to the hashtag search page
             await self.page.goto(f"https://www.instagram.com/explore/search/keyword/?q=%23{self.tag}")
             print(f"🔍 Searching posts by hashtag: {self.tag}")

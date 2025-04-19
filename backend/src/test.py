@@ -32,3 +32,30 @@ async def main():
     print(user_id.keys())
 
 asyncio.run(main())
+
+# from aiohttp import web
+
+# # WebSocket handler
+# async def websocket_handler(request):
+#     ws = web.WebSocketResponse()
+#     await ws.prepare(request)
+
+#     print("WebSocket connection established")
+
+#     async for msg in ws:
+#         if msg.type == web.WSMsgType.TEXT:
+#             print(f"Received: {msg.data}")
+#             await ws.send_str(f"Echo: {msg.data}")
+#         elif msg.type == web.WSMsgType.ERROR:
+#             print(f"WebSocket connection closed with exception: {ws.exception()}")
+
+#     print("WebSocket connection closed")
+#     return ws
+
+# # Create app and routes
+# app = web.Application()
+# app.router.add_get('/ws', websocket_handler)
+
+# # Run the server
+# if __name__ == '__main__':
+#     web.run_app(app, host='localhost', port=8080)

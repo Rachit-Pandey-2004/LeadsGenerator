@@ -2,18 +2,19 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from aiohttp import web
-from db import History
-from db import ExtendedUser
+from db import History, ExtendedUser, InstagramAccountManager
 import json
 import logging
 from typing import Any, Dict
-from config import ALLOWED_REQ_TYPES
+from .config import ALLOWED_REQ_TYPES
+from interface import InstaDriver
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 async def handle_InstaManager(request : web.Request) -> web.Response:
+    # it will be better to manage with ws
     '''
     query supported :
     save ~ save the account after verifing that account credentials are correct
@@ -31,12 +32,38 @@ async def handle_InstaManager(request : web.Request) -> web.Response:
             password = data.get("password")
             assign = data.get("assign")
             # assign 1 means webdriver scrapper and assign 2 is aiograpi
-            if ((not user_name or not isinstance(user_name, str)) or (not password or not isinstance(password, str)) or (not assign or not isinstance(assign, int))):
+            if ((not user_name or not isinstance(user_name, str)) or (not password or not isinstance(password, str)) or (not assign or not isinstance(assign, str))):
                 return web.json_response({"error": "None data received !!"}, status= 404)
             # first login and save the user and then transfer the data to db with session location
-            if(assign == 1):
+            if(assign == "scraper1"):
+                print("!!!!!@@@@")
+                async with InstaDriver(username=user_name,password=password, headless=True) as driver:
+                    print("@@@@")
+                    status = await driver.begin(f"src/sessions/session_{user_name}_{assign}.json")
+                    if not status:#if failed return the error
+                        return web.json_response({"error": "unable to login"}, status= 410)
                 
+            elif ( assign == "scraper2"): 
+                # have some issue
+                from aiograpi import Client
+                status = await Client().login(user_name,password)
+                await Client.dump_settings(f"session_{user_name}_{assign}.json")
+                if not status:#if failed return the error
+                    return web.json_response({"error": "unable to login"}, status= 410)
+            else :
+                return web.json_response({"error": "not allowed"}, status= 410)
             #  now implement db from here 
+            status = await InstagramAccountManager().insert_account(
+                username = user_name,
+                password = password,
+                assigned = assign,
+                session_path = f"src/sessions/session_{user_name}_{assign}.json"
+            )
+            if not status:
+                return web.json_response({"error": "failed to write to the db"}, status= 410)
+            return web.json_response({"msg": "success"}, status= 200)
+
+
             
     except Exception as e:
         print(e)

@@ -4,6 +4,8 @@ Let's make the implementation simple and cyclic
 import sys
 import os
 import asyncio
+from app import create_app
+from aiohttp import web
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from interface import InstaDriver
@@ -25,7 +27,7 @@ class Cyclic:
                 
                 try:
                     async with InstaDriver(session_id=task._id) as driver:
-                        await driver.begin()
+                        status = await driver.begin()
                         limit = task.limit
                         if task.query_type.lower() == 'hashtags':
                             for query in task.query:
@@ -40,9 +42,18 @@ class Cyclic:
 
         except Exception as e:
             print(f"General error in find_task(): {e}")
-
+async def server():
+    app = create_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, port=8080)
+    await site.start()
+    print("Server started at http://localhost:8080")
 async def main():
-    await Cyclic().find_task()
+    asyncio.create_task(server())
+    while(True):
+       await Cyclic().find_task()
+       await asyncio.sleep(20)
 
 if __name__ == "__main__":
     asyncio.run(main())

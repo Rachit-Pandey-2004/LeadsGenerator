@@ -162,13 +162,16 @@ class User:
             print(f"Error finding user by username: {e}")
             return None
     @staticmethod
-    async def find_by_scanned_status(scanned: bool):
+    async def find_by_scanned_status(scanned: bool, search_id):
         '''
-        Returns all items matching the scanned status
+        Returns all items matching the scanned status and search_id
         '''
         try:
             result = []
-            cursor = users_collection.find({"scanned": scanned})
+            cursor = users_collection.find({
+                "scanned": scanned,
+                "search_ids": ObjectId(search_id)
+            })
             async for doc in cursor:
                 try:
                     user = User(
@@ -180,7 +183,7 @@ class User:
                         account_type=doc["account_type"],
                         scanned=doc.get("scanned", False),
                         profile_pic_url=doc["profile_pic_url"],
-                        search_id=str(doc["search_ids"][0]) if doc.get("search_ids") else "",
+                        search_id=str(search_id),
                         _id=doc["_id"],
                         created_at=doc.get("created_at")
                     )

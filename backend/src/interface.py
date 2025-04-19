@@ -5,22 +5,30 @@ from scripts import auth
 from scripts import hashSearch
 from scripts import Driver
 from aiograpi import Client
+from db import InstagramAccountManager
 
-USERNAME = "thecreators782"
-PASSWORD = "TheCreators12345"
 
 class InstaDriver:
-    def __init__(self, session_id):
+    
+    def __init__(self, session_id=None, username:str = None, password:str = None,headless = False ):
         self.session_id = session_id
         self.playwright = None
         self.browser = None
         self.context = None
         self.page = None
+        self.headless=headless
+        self.USERNAME = username
+        self.PASSWORD = password
         self.cl = Client()
-
     async def __aenter__(self):
+        '''
+        make the selection of the id and mark it as in use
+        '''
+        self.manager = InstagramAccountManager()
+        self.account = await self.manager.get_available_account(scraper_id="scraper1")
+        # and release the lock i exit 
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True)
+        self.browser = await self.playwright.chromium.launch(headless = self.headless)
         self.context = await self.browser.new_context(
             timezone_id="Asia/Kolkata",
             locale="en-US",
@@ -32,21 +40,23 @@ class InstaDriver:
         }
         )
         self.page = await self.context.new_page()
-        await self.cl.login(USERNAME, PASSWORD)
+        # await self.cl.login(InstaDriver.USERNAME, InstaDriver.PASSWORD)
         await stealth_async(self.page)
         return self  # Returning the instance for context management
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        
+        await self.manager.set_cooldown(self.account['username'])
         await self.browser.close()
         await self.playwright.stop()
 
     async def begin(self):
         print("Initiating the client...")
         AuthClass = auth.Authenticate 
-        AuthInstance = auth.Authenticate(USERNAME, PASSWORD, self.page,self.context)
-        await AuthInstance.get_session() 
+        AuthInstance = auth.Authenticate(self.account['username'], self.account['password'], self.page,self.context)
+        AuthInstance.STATE_FILE = self.account['sessionDir']
+        status = await AuthInstance.get_session() 
         print("auth completed")
+        return status
 
     async def search_by_hashtag(self, hashtag,limit):
         """
